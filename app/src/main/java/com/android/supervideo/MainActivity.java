@@ -50,7 +50,6 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private TXLivePlayConfig mPlayConfig;
 
     private WebView mWebView;
-    private EditText editText;
 
     private static final float CACHE_TIME_FAST = 1.0f;
     private static final float CACHE_TIME_SMOOTH = 5.0f;
@@ -61,19 +60,17 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     public static final int ACTIVITY_TYPE_LINK_MIC = 4;
     public static final int ACTIVITY_TYPE_REALTIME_PLAY = 5;
 
+    public static final String DOMAIN_URL = "http://wf0101.com/";
+
     private long mStartPlayTS = 0;
 
     private AlertDialog alertDialog;
 
     private String playUrl;
-    private String playUrlFirst = "rtmp://wf888.fun:10085/hls/rJgkkUBmg";
-    private String playUrlSecond = "rtmp://wf888.fun:10085/hls/YwH3zUfmR";
-    private String playUrlThird = "rtmp://wf888.fun:10085/hls/occPiUfmg";
 
     private long mTotalLossTime = 0;
     private long pauseTime = 0;
 
-    private int currentLine = 1;
     private int currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 
     private int mPlayType = TXLivePlayer.PLAY_TYPE_LIVE_FLV;
@@ -103,26 +100,46 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         setContentView(R.layout.activity_main);
         mPlayerView = findViewById(R.id.video_view);
 
-        playUrl = playUrlFirst;
-
         mIsPlaying = false;
 
+        initPlay();
 
-        if (mLivePlayer == null) {
-            mLivePlayer = new TXLivePlayer(this);
-        }
+
         mPlayerView.setLogMargin(12, 12, 110, 60);
         mPlayerView.showLog(false);
 
+
+        //showLoadingDialog();
+        //startPlay();
+        iniWebView();
+    }
+
+    private void initPlay() {
+        if (mLivePlayer == null) {
+            mLivePlayer = new TXLivePlayer(this);
+        }
         mPlayConfig = new TXLivePlayConfig();
         mPlayConfig.setAutoAdjustCacheTime(true);
         mPlayConfig.setMaxAutoAdjustCacheTime(CACHE_TIME_FAST);
         mPlayConfig.setMinAutoAdjustCacheTime(CACHE_TIME_FAST);
         mLivePlayer.setConfig(mPlayConfig);
-        showLoadingDialog();
-        startPlay();
-        editText = findViewById(R.id.et_url);
-        iniWebView();
+
+
+        mLivePlayer.setPlayerView(mPlayerView);
+
+        mLivePlayer.setPlayListener(this);
+        // 硬件加速在1080p解码场景下效果显著，但细节之处并不如想象的那么美好：
+        // (1) 只有 4.3 以上android系统才支持
+        // (2) 兼容性我们目前还仅过了小米华为等常见机型，故这里的返回值您先不要太当真
+        mLivePlayer.enableHardwareDecode(true); //支持硬件加速
+        // 设置填充模式
+        mLivePlayer.setRenderMode(TXLiveConstants.RENDER_MODE_FULL_FILL_SCREEN);
+        // 设置画面渲染方向
+        mLivePlayer.setRenderRotation(TXLiveConstants.RENDER_ROTATION_LANDSCAPE);
+        //设置播放器缓存策略
+        //这里将播放器的策略设置为自动调整，调整的范围设定为1到4s，您也可以通过setCacheTime将播放器策略设置为采用
+        //固定缓存时间。如果您什么都不调用，播放器将采用默认的策略（默认策略为自动调整，调整范围为1到4s）
+        //mLivePlayer.setCacheTime(5);
     }
 
     @Override
@@ -133,37 +150,14 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
 
     private boolean startPlay() {
-
+        showLoadingDialog();
         if (!checkPlayUrl(playUrl)) {
+            dismissLoadingDialog();
             return false;
         }
-
-        mLivePlayer.setPlayerView(mPlayerView);
-
-        mLivePlayer.setPlayListener(this);
-        // 硬件加速在1080p解码场景下效果显著，但细节之处并不如想象的那么美好：
-        // (1) 只有 4.3 以上android系统才支持
-        // (2) 兼容性我们目前还仅过了小米华为等常见机型，故这里的返回值您先不要太当真
-        mLivePlayer.enableHardwareDecode(true); //支持硬件加速
-        // 设置填充模式
-        mLivePlayer.setRenderMode(TXLiveConstants.RENDER_MODE_ADJUST_RESOLUTION);
-        // 设置画面渲染方向
-        mLivePlayer.setRenderRotation(TXLiveConstants.RENDER_ROTATION_PORTRAIT);
-        //设置播放器缓存策略
-        //这里将播放器的策略设置为自动调整，调整的范围设定为1到4s，您也可以通过setCacheTime将播放器策略设置为采用
-        //固定缓存时间。如果您什么都不调用，播放器将采用默认的策略（默认策略为自动调整，调整范围为1到4s）
-        //mLivePlayer.setCacheTime(5);
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("Referer", "qcloud.com");
-        mPlayConfig.setHeaders(headers);
-
-        mLivePlayer.setConfig(mPlayConfig);
-        int result = mLivePlayer.startPlay(playUrl, mPlayType); // result返回值：0 success;  -1 empty url; -2 invalid url; -3 invalid playType;
-
+        mLivePlayer.startPlay(playUrl, mPlayType); // result返回值：0 success;  -1 empty url; -2 invalid url; -3 invalid playType;
         Log.w("video render", "timetrack start play");
-
         mStartPlayTS = System.currentTimeMillis();
-
         return true;
     }
 
@@ -184,6 +178,9 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
     public void restartPlay() {
+        if (!checkPlayUrl(playUrl)) {
+            return ;
+        }
         showLoadingDialog();
         mLivePlayer.stopPlay(false);
         mLivePlayer.startPlay(playUrl, mPlayType);
@@ -314,37 +311,8 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
     }
 
-    public void switchFirst(View view){
-        if(currentLine != 1){
-            currentLine = 1;
-            playUrl = playUrlFirst;
-            restartPlay();
-        }
 
-    }
-
-    public void switchSecond(View view){
-        if(currentLine != 2){
-            currentLine = 2;
-            playUrl = playUrlSecond;
-            restartPlay();
-        }
-    }
-
-    public void switchThird(View view){
-        if(currentLine != 3){
-            currentLine = 3;
-            playUrl = playUrlThird;
-            restartPlay();
-        }
-    }
-
-    public void goWeb(View view){
-        mWebView.loadUrl(editText.getText().toString());
-    }
-
-
-    public void switchOrientation(View view){
+    public void switchOrientation(){
         if(currentOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){
             currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
         }else{
@@ -390,7 +358,6 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                //syncCookie(WebActivity.this, url);
                 mWebView.loadUrl(url);
                 return true;
 
@@ -433,6 +400,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
             }
         });
         mWebView.addJavascriptInterface(new JsToJava(), "JsToJava");
+        mWebView.loadUrl(DOMAIN_URL);
     }
 
     private class JsToJava {
@@ -442,35 +410,40 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    switchOrientation(null);
+                    switchOrientation();
                 }
             });
         }
 
+        /**
+         * 切换视频源
+         * @param url
+         */
         @JavascriptInterface
-        public void appFirst() {
+        public void appSwitchSource(final String url) {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    switchFirst(null);
+                    if(TextUtils.isEmpty(playUrl)){
+                        //说明是第一次播放
+                        playUrl = url;
+                        startPlay();
+                    }else{
+                        restartPlay();
+                    }
                 }
             });
         }
+
+        /**
+         * 关闭视频
+         */
         @JavascriptInterface
-        public void appSecond() {
+        public void appClose() {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    switchSecond(null);
-                }
-            });
-        }
-        @JavascriptInterface
-        public void appThird() {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    switchThird(null);
+                    mLivePlayer.stopPlay(false);
                 }
             });
         }
