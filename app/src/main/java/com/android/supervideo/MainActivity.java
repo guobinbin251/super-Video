@@ -1,11 +1,13 @@
 package com.android.supervideo;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
@@ -79,9 +81,9 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            Log.d("<gbb>","------handle 接收到消息，重启");
-            Log.d("<gbb>","------handle 接收到消息，重启");
-            Log.d("<gbb>","------handle 接收到消息，重启");
+            Log.d("<gbb>", "------handle 接收到消息，重启");
+            Log.d("<gbb>", "------handle 接收到消息，重启");
+            Log.d("<gbb>", "------handle 接收到消息，重启");
 
             restartPlay();
         }
@@ -94,21 +96,49 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         //无title
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         //全屏
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        /*getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                */
+        setContentView(R.layout.activity_main);
 
-        WindowManager.LayoutParams lp = this.getWindow().getAttributes();
-        lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        this.getWindow().setAttributes(lp);
-        /*View decorView = getWindow().getDecorView();
+        /*int version = android.os.Build.VERSION.SDK_INT;
+        Window window = getWindow();
+        if (version >= Build.VERSION_CODES.KITKAT) {
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+        } else {
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+        }*/
+
+
+        int version = android.os.Build.VERSION.SDK_INT;
+        if (version >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = this.getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            this.getWindow().setAttributes(lp);
+        }
+
+
+
+
+        View decorView = getWindow().getDecorView();
         int systemUiVisibility = decorView.getSystemUiVisibility();
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN;
         systemUiVisibility |= flags;
-        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);*/
+        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);
 
-        setContentView(R.layout.activity_main);
+
+        fullScreen();
+
+
         mPlayerView = findViewById(R.id.video_view);
 
         mIsPlaying = false;
@@ -124,6 +154,33 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         //startPlay();
         iniWebView();
     }
+
+    /*
+     * @param activity
+     */
+    public void fullScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                //5.x开始需要把颜色设置透明，否则导航栏会呈现系统默认的浅灰色
+                Window window = getWindow();
+                View decorView = window.getDecorView();
+                //两个 flag 要结合使用，表示让应用的主体内容占用系统状态栏的空间
+                int option = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+                decorView.setSystemUiVisibility(option);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                window.setStatusBarColor(Color.TRANSPARENT);
+            } else {
+                Window window = getWindow();
+                WindowManager.LayoutParams attributes = window.getAttributes();
+                int flagTranslucentStatus = WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS;
+                int flagTranslucentNavigation = WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION;
+                attributes.flags |= flagTranslucentStatus;
+                window.setAttributes(attributes);
+            }
+        }
+    }
+
 
     private void initPlay() {
         if (mLivePlayer == null) {
@@ -190,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
     public void restartPlay() {
         if (!checkPlayUrl(playUrl)) {
-            return ;
+            return;
         }
         showLoadingDialog();
         mLivePlayer.stopPlay(false);
@@ -284,7 +341,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
     public void showLoadingDialog() {
-        try{
+        try {
             if (alertDialog != null && alertDialog.isShowing()) {
                 return;
             }
@@ -304,7 +361,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
             alertDialog.show();
             alertDialog.setContentView(R.layout.dialog_loading);
             alertDialog.setCanceledOnTouchOutside(false);
-        }catch (Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
 
@@ -323,10 +380,10 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
 
-    public void switchOrientation(){
-        if(currentOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){
+    public void switchOrientation() {
+        if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
             currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-        }else{
+        } else {
             currentOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
         }
         setRequestedOrientation(currentOrientation);
@@ -428,6 +485,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
         /**
          * 切换视频源
+         *
          * @param url
          */
         @JavascriptInterface
@@ -435,11 +493,11 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    if(TextUtils.isEmpty(playUrl)){
+                    if (TextUtils.isEmpty(playUrl)) {
                         //说明是第一次播放
                         playUrl = url;
                         startPlay();
-                    }else{
+                    } else {
                         restartPlay();
                     }
                 }
