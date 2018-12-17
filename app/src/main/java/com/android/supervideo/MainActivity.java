@@ -4,12 +4,15 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.ColorDrawable;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -46,6 +49,8 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity implements ITXLivePlayListener {
 
+    public static final int SOUND_HEJU = 1;
+
     private TXLivePlayer mLivePlayer = null;
     private boolean mIsPlaying;
     private TXCloudVideoView mPlayerView;
@@ -56,11 +61,6 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private static final float CACHE_TIME_FAST = 1.0f;
     private static final float CACHE_TIME_SMOOTH = 5.0f;
 
-    public static final int ACTIVITY_TYPE_PUBLISH = 1;
-    public static final int ACTIVITY_TYPE_LIVE_PLAY = 2;
-    public static final int ACTIVITY_TYPE_VOD_PLAY = 3;
-    public static final int ACTIVITY_TYPE_LINK_MIC = 4;
-    public static final int ACTIVITY_TYPE_REALTIME_PLAY = 5;
 
     public static final String DOMAIN_URL = "http://wf0101.com/";
 
@@ -76,6 +76,9 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private int currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 
     private int mPlayType = TXLivePlayer.PLAY_TYPE_LIVE_FLV;
+
+    SoundPool soundPool;
+    HashMap<Integer, Integer> musicId = new HashMap<Integer, Integer>();
 
     private Handler mHandler = new Handler() {
         @Override
@@ -153,6 +156,24 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         //showLoadingDialog();
         //startPlay();
         iniWebView();
+        initSound();
+    }
+
+    private void initSound() {
+        soundPool = new SoundPool(12, AudioManager.STREAM_MUSIC, 5);
+        soundPool.load(MainActivity.this, R.raw.sound_1, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_2, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_3, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_4, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_5, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_6, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_7, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_8, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_9, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_10, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_11, 1);
+
+
     }
 
     /*
@@ -210,10 +231,27 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         //mLivePlayer.setCacheTime(5);
     }
 
+    private int index = 0;
+
     @Override
     public void onBackPressed() {
-        stopPlay();
-        super.onBackPressed();
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("确定要退出？")
+                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        stopPlay();
+                        MainActivity.this.finish();
+                    }
+                })
+                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+
+                    }
+                })
+                .show();
+
     }
 
 
@@ -247,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
     public void restartPlay() {
         if (!checkPlayUrl(playUrl)) {
-            return;
+            return ;
         }
         showLoadingDialog();
         mLivePlayer.stopPlay(false);
@@ -515,6 +553,23 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
                     mLivePlayer.stopPlay(false);
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void appPlaySound(final int index) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    playSound(index);
+                }
+            });
+        }
+    }
+
+
+    private void playSound(int index) {
+        if (index > 0 && index < 12) {
+            soundPool.play(index, 1, 1, 0, 0, 1);
         }
     }
 }
