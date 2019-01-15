@@ -589,6 +589,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
                         playUrl = url;
                         startPlay();
                     } else {
+                        playUrl = url;
                         restartPlay();
                     }
                 }
