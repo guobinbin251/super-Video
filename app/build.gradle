@@ -10,13 +10,24 @@ android {
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
+    signingConfigs {
+
+        ixAppConfig {
+            keyAlias 'key0'
+            keyPassword 'wf123456'
+            storeFile file("../wfapp.jks")
+            storePassword 'wf123456'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.ixAppConfig
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
+
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
@@ -28,4 +39,5 @@ dependencies {
 
     implementation(name: 'LiteAVSDK_Player', ext: 'aar')
     implementation(name: 'lib_tcsuperplayer', ext: 'aar')
+    implementation 'com.tencent.bugly:crashreport:latest.release'
 }

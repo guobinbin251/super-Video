@@ -6,6 +6,11 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        // 开启状态栏
+        <item name="android:windowTranslucentStatus">true</item>
+        // 开启导航栏
+        <item name="android:windowTranslucentNavigation">true</item>
+
     </style>
     <style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>

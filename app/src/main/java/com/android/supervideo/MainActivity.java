@@ -1,23 +1,19 @@
 package com.android.supervideo;
 
-import android.annotation.TargetApi;
 import android.app.AlertDialog;
-import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
-import android.graphics.drawable.AnimationDrawable;
-import android.graphics.drawable.ColorDrawable;
+import android.graphics.Color;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
-import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -25,16 +21,13 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
-import android.webkit.ValueCallback;
-import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.tencent.liteav.demo.play.SuperPlayerModel;
+import com.tencent.bugly.crashreport.CrashReport;
 import com.tencent.rtmp.ITXLivePlayListener;
 import com.tencent.rtmp.TXLiveConstants;
 import com.tencent.rtmp.TXLivePlayConfig;
@@ -52,6 +45,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private TXLivePlayer mLivePlayer = null;
     private boolean mIsPlaying;
     private TXCloudVideoView mPlayerView;
+    private ProgressBar progressBar;
     private TXLivePlayConfig mPlayConfig;
 
     private WebView mWebView;
@@ -64,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
     private long mStartPlayTS = 0;
 
-    private AlertDialog alertDialog;
+    //private AlertDialog alertDialog;
 
     private String playUrl;
 
@@ -74,6 +68,28 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private int currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 
     private int mPlayType = TXLivePlayer.PLAY_TYPE_LIVE_FLV;
+
+    private int[] resIds = {
+            R.raw.sound_1,
+            R.raw.sound_2,
+            R.raw.sound_3,
+            R.raw.sound_4,
+            R.raw.sound_5,
+            R.raw.sound_6,
+            R.raw.sound_7,
+            R.raw.sound_8,
+            R.raw.sound_9,
+            R.raw.sound_10,
+            R.raw.sound_11,
+            R.raw.sound_12,
+            R.raw.sound_13,
+            R.raw.sound_14,
+            R.raw.sound_15,
+            R.raw.sound_16,
+            R.raw.sound_17,
+            R.raw.sound_18,
+            R.raw.sound_19
+    };
 
     SoundPool soundPool;
     HashMap<Integer, Integer> musicId = new HashMap<Integer, Integer>();
@@ -94,24 +110,51 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        CrashReport.initCrashReport(getApplicationContext(), "c66c9212fd", false);
         //无title
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         //全屏
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        /*getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                */
+        setContentView(R.layout.activity_main);
 
-        /*WindowManager.LayoutParams lp = this.getWindow().getAttributes();
-        lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        this.getWindow().setAttributes(lp);
+        /*int version = android.os.Build.VERSION.SDK_INT;
+        Window window = getWindow();
+        if (version >= Build.VERSION_CODES.KITKAT) {
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+        } else {
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+        }*/
+
+
+        int version = android.os.Build.VERSION.SDK_INT;
+        if (version >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = this.getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            this.getWindow().setAttributes(lp);
+        }
+
+
         View decorView = getWindow().getDecorView();
         int systemUiVisibility = decorView.getSystemUiVisibility();
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN;
         systemUiVisibility |= flags;
-        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);*/
+        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);
 
-        setContentView(R.layout.activity_main);
+
+        fullScreen();
+
+        progressBar = findViewById(R.id.progress_bar);
         mPlayerView = findViewById(R.id.video_view);
 
         mIsPlaying = false;
@@ -130,9 +173,29 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
     private void initSound() {
-        soundPool = new SoundPool(12, AudioManager.STREAM_MUSIC, 5);
-        soundPool.load(MainActivity.this, R.raw.sound_1, 1);
-        soundPool.load(MainActivity.this, R.raw.sound_2, 1);
+        //soundPool = new SoundPool(19, AudioManager.STREAM_MUSIC, 5);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            AudioAttributes audioAttributes = null;
+            audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+
+            soundPool = new SoundPool.Builder()
+                    .setMaxStreams(20)
+                    .setAudioAttributes(audioAttributes)
+                    .build();
+        } else { // 5.0 以前
+            soundPool = new SoundPool(20, AudioManager.STREAM_MUSIC, 5);  // 创建SoundPool
+        }
+
+        for(int i=0;i<resIds.length;i++){
+            soundPool.load(MainActivity.this, resIds[i], 1);
+        }
+
+
+        /*soundPool.load(MainActivity.this, R.raw.sound_2, 1);
         soundPool.load(MainActivity.this, R.raw.sound_3, 1);
         soundPool.load(MainActivity.this, R.raw.sound_4, 1);
         soundPool.load(MainActivity.this, R.raw.sound_5, 1);
@@ -141,10 +204,50 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         soundPool.load(MainActivity.this, R.raw.sound_8, 1);
         soundPool.load(MainActivity.this, R.raw.sound_9, 1);
         soundPool.load(MainActivity.this, R.raw.sound_10, 1);
-        soundPool.load(MainActivity.this, R.raw.sound_11, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_12, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_13, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_14, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_15, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_16, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_17, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_18, 1);
+        soundPool.load(MainActivity.this, R.raw.sound_19, 1);*/
 
-
+        soundPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
+            @Override
+            public void onLoadComplete(SoundPool soundPool, int i, int i1) {
+                Toast.makeText(MainActivity.this, "OnLoadComplete", Toast.LENGTH_SHORT);
+                Log.d("11111", "OnLoadComplete");
+            }
+        });
     }
+
+    /*
+     * @param activity
+     */
+    public void fullScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                //5.x开始需要把颜色设置透明，否则导航栏会呈现系统默认的浅灰色
+                Window window = getWindow();
+                View decorView = window.getDecorView();
+                //两个 flag 要结合使用，表示让应用的主体内容占用系统状态栏的空间
+                int option = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+                decorView.setSystemUiVisibility(option);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                window.setStatusBarColor(Color.TRANSPARENT);
+            } else {
+                Window window = getWindow();
+                WindowManager.LayoutParams attributes = window.getAttributes();
+                int flagTranslucentStatus = WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS;
+                int flagTranslucentNavigation = WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION;
+                attributes.flags |= flagTranslucentStatus;
+                window.setAttributes(attributes);
+            }
+        }
+    }
+
 
     private void initPlay() {
         if (mLivePlayer == null) {
@@ -214,6 +317,8 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     @Override
     protected void onDestroy() {
         stopPlay();
+        soundPool.release();
+        soundPool = null;
         super.onDestroy();
     }
 
@@ -323,7 +428,11 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
     public void showLoadingDialog() {
         try {
-            if (alertDialog != null && alertDialog.isShowing()) {
+            progressBar.setVisibility(View.VISIBLE);
+
+
+
+            /*if (alertDialog != null && alertDialog.isShowing()) {
                 return;
             }
             if (alertDialog == null) {
@@ -331,17 +440,17 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
             }
             alertDialog.getWindow().setBackgroundDrawable(new ColorDrawable());
             alertDialog.setCancelable(true);
-        /*alertDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+        *//*alertDialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
             @Override
             public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == KeyEvent.KEYCODE_BACK)
                     return true;
                 return false;
             }
-        });*/
+        });*//*
             alertDialog.show();
             alertDialog.setContentView(R.layout.dialog_loading);
-            alertDialog.setCanceledOnTouchOutside(false);
+            alertDialog.setCanceledOnTouchOutside(false);*/
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -349,9 +458,10 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
     public void dismissLoadingDialog() {
-        if (null != alertDialog && alertDialog.isShowing()) {
+        progressBar.setVisibility(View.GONE);
+        /*if (null != alertDialog && alertDialog.isShowing()) {
             alertDialog.dismiss();
-        }
+        }*/
     }
 
 
@@ -479,6 +589,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
                         playUrl = url;
                         startPlay();
                     } else {
+                        playUrl = url;
                         restartPlay();
                     }
                 }
@@ -511,8 +622,9 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
 
 
     private void playSound(int index) {
-        if (index > 0 && index < 12) {
+        if (index > 0 && index < 20) {
             soundPool.play(index, 1, 1, 0, 0, 1);
         }
     }
+
 }
