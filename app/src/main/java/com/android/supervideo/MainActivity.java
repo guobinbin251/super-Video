@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     private static final float CACHE_TIME_SMOOTH = 5.0f;
 
 
-    public static final String DOMAIN_URL = "http://wf0101.com/";
+    public static final String DOMAIN_URL = "http://app.wf0101.com/";
 
     private long mStartPlayTS = 0;
 
