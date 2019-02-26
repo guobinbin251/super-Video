@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.SurfaceTexture;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
@@ -20,14 +21,19 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
+import android.webkit.CookieSyncManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
@@ -178,11 +184,39 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         mPlayerView.setLogMargin(12, 12, 110, 60);
         mPlayerView.showLog(false);
 
+        mPlayerView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+                Surface surface = new Surface(surfaceTexture);
+                mLivePlayer.setSurface(surface);
+            }
 
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+                return false;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+            }
+        });
         //showLoadingDialog();
         //startPlay();
         iniWebView();
         initSound();
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void initSound() {
@@ -271,8 +305,6 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         mPlayConfig.setMaxAutoAdjustCacheTime(CACHE_TIME_FAST);
         mPlayConfig.setMinAutoAdjustCacheTime(CACHE_TIME_FAST);
         mLivePlayer.setConfig(mPlayConfig);
-
-
         mLivePlayer.setPlayerView(mPlayerView);
 
         mLivePlayer.setPlayListener(this);
@@ -281,7 +313,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
         // (2) 兼容性我们目前还仅过了小米华为等常见机型，故这里的返回值您先不要太当真
         mLivePlayer.enableHardwareDecode(true); //支持硬件加速
         // 设置填充模式
-        mLivePlayer.setRenderMode(TXLiveConstants.RENDER_MODE_FULL_FILL_SCREEN);
+        mLivePlayer.setRenderMode(TXLiveConstants.RENDER_MODE_ADJUST_RESOLUTION);
         // 设置画面渲染方向
         mLivePlayer.setRenderRotation(TXLiveConstants.RENDER_ROTATION_LANDSCAPE);
         //设置播放器缓存策略
@@ -432,12 +464,64 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
                 }
             }
             String aaa = "receive event: " + event + ", " + param.getString(TXLiveConstants.EVT_DESCRIPTION);
+        } else if (event == TXLiveConstants.PLAY_EVT_CHANGE_RESOLUTION) {
+            //获取视频的宽高
+            int width = param.getInt(TXLiveConstants.EVT_PARAM1, 0);
+            int height = param.getInt(TXLiveConstants.EVT_PARAM2, 0);
+            //根据视频尺寸，对TextureView进行拉伸和旋转
+            adjustView(width, height, 0, TXLiveConstants.RENDER_MODE_FULL_FILL_SCREEN);
         }
 
         if (event < 0) {
             Toast.makeText(getApplicationContext(), param.getString(TXLiveConstants.EVT_DESCRIPTION), Toast.LENGTH_SHORT).show();
         }
     }
+
+    private void adjustView(int videoWidth, int videoHeight, int rotation, int mode) {
+
+        if (0 == videoWidth || 0 == videoHeight) {
+            return;
+        }
+        Log.d("<gbb>", "-------videoWidth-" + videoWidth);
+        Log.d("<gbb>", "-------videoHeight-" + videoHeight);
+        Log.d("<gbb>", "-------getHeight-" + mPlayerView.getHeight());
+        Log.d("<gbb>", "-------getWidth-" + mPlayerView.getWidth());
+        int viewWidth = mPlayerView.getHeight();
+        int viewHeight = mPlayerView.getWidth();
+        int showWidth;
+        int showHeight;
+        if (rotation == 90 || rotation == 270) {
+            //互换宽高
+            viewWidth = viewWidth ^ viewHeight;
+            viewHeight = viewWidth ^ viewHeight;
+            viewWidth = viewWidth ^ viewHeight;
+        }
+
+        /*float xRatio = (float) viewHeight / videoHeight;
+        if (mode == TXLiveConstants.RENDER_MODE_ADJUST_RESOLUTION) {
+            //自适应模式
+            if (viewHeight > videoHeight * xRatio) {
+                showWidth = viewWidth;
+                showHeight = (int) (videoHeight * xRatio);
+            } else {
+                showWidth = (videoWidth * viewHeight / videoHeight);
+                showHeight = viewHeight;
+            }
+        } else {
+            //填充模式
+            if (viewHeight > videoHeight * xRatio) {
+                showWidth = (videoWidth * viewHeight / videoHeight);
+                showHeight = viewHeight;
+            } else {
+                showWidth = viewWidth;
+                showHeight = (int) (videoHeight * xRatio);
+            }
+        }*/
+        //mPlayerView.setRotation(rotation);
+        //mPlayerView.setScaleX((float) mPlayerView.getWidth() / videoWidth);
+        mPlayerView.setScaleY((float) mPlayerView.getWidth() / videoWidth);
+    }
+
 
     public void showLoadingDialog() {
         try {
@@ -482,6 +566,7 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     public void onNetStatus(Bundle bundle) {
 
     }
+
 
 
     public void switchOrientation() {
@@ -619,6 +704,27 @@ public class MainActivity extends AppCompatActivity implements ITXLivePlayListen
     }
 
     private class JsToJava {
+
+        @JavascriptInterface
+        public void appClearCache() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    CookieSyncManager.createInstance(MainActivity.this);
+                    CookieManager cookieManager = CookieManager.getInstance();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        cookieManager.removeSessionCookies(null);
+                        cookieManager.removeAllCookie();
+                        cookieManager.flush();
+                    } else {
+                        cookieManager.removeAllCookie();
+                        CookieSyncManager.getInstance().sync();
+                    }
+                    WebStorage.getInstance().deleteAllData();
+                    mWebView.clearCache(true);
+                }
+            });
+        }
 
         @JavascriptInterface
         public void appOrientation() {
